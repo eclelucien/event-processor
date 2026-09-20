@@ -10,10 +10,11 @@ type Server struct {
 	httpServer *http.Server
 }
 
-func NewServer(cfg config.Config) *Server {
+func NewServer(cfg config.Config, eventHandler *EventHandler) *Server {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("POST /api/v1/events", eventHandler.Create)
 
 	return &Server{
 		httpServer: &http.Server{

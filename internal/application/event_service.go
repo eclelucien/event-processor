@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/eclesiaste/event-processor/internal/domain"
 )
 
@@ -35,7 +37,6 @@ func (s *EventService) Create(
 	source string,
 	payload []byte,
 ) (*domain.Event, error) {
-
 	if eventType == "" {
 		return nil, ErrInvalidEventType
 	}
@@ -49,6 +50,7 @@ func (s *EventService) Create(
 	}
 
 	event := &domain.Event{
+		ID:        uuid.NewString(),
 		Type:      eventType,
 		Source:    source,
 		Payload:   payload,
