@@ -1,0 +1,28 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Go build output
+/bin/
+/build/
+
+# Coverage
+coverage.out
+coverage.html
+
+# Environment
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
