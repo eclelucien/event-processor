@@ -1,20 +1,27 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/eclesiaste/event-processor/internal/config"
+	httpserver "github.com/eclesiaste/event-processor/internal/interfaces/http"
 )
 
 func main() {
-	fmt.Println("Event processor starting...")
-
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Environment:", cfg.AppEnv)
-	fmt.Println("HTTP Port:", cfg.HTTPPort)
+	server := httpserver.NewServer(cfg)
+
+	log.Printf(
+		"Event Processor running on port %s (%s)",
+		cfg.HTTPPort,
+		cfg.AppEnv,
+	)
+
+	if err := server.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
