@@ -63,3 +63,10 @@ func (s *EventService) Create(
 
 	return event, nil
 }
+
+func (s *EventService) GetByID(
+	ctx context.Context,
+	id string,
+) (*domain.Event, error) {
+	return s.repository.GetByID(ctx, id)
+}
