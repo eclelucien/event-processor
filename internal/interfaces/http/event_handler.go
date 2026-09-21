@@ -1,18 +1,32 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
-	"github.com/eclesiaste/event-processor/internal/application"
 	"github.com/eclesiaste/event-processor/internal/domain"
 )
 
-type EventHandler struct {
-	service *application.EventService
+type EventService interface {
+	Create(
+		ctx context.Context,
+		eventType string,
+		source string,
+		payload []byte,
+	) (*domain.Event, error)
+
+	GetByID(
+		ctx context.Context,
+		id string,
+	) (*domain.Event, error)
 }
 
-func NewEventHandler(service *application.EventService) *EventHandler {
+type EventHandler struct {
+	service EventService
+}
+
+func NewEventHandler(service EventService) *EventHandler {
 	return &EventHandler{
 		service: service,
 	}
