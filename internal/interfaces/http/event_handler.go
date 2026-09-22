@@ -62,7 +62,7 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var request createEventRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -73,7 +73,7 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 		request.Payload,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -91,12 +91,13 @@ func (h *EventHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	event, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, application.ErrEventNotFound) {
-			http.Error(w, "event not found", http.StatusNotFound)
+			writeError(w, http.StatusNotFound, "event not found")
 			return
 		}
 
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
+
 	}
 
 	response := newEventResponse(event)
