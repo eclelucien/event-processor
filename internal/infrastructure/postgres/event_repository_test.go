@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -14,8 +15,11 @@ import (
 func TestEventRepository_CreateAndGetByID(t *testing.T) {
 	ctx := context.Background()
 
-	databaseURL := "postgres://event_processor:event_processor@localhost:5432/event_processor?sslmode=disable"
+	databaseURL := os.Getenv("DATABASE_URL")
 
+	if databaseURL == "" {
+		t.Fatal("DATABASE_URL is not set")
+	}
 	db, err := New(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("failed to connect to database: %v", err)
