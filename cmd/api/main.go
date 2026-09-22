@@ -12,6 +12,7 @@ import (
 
 	"github.com/eclesiaste/event-processor/internal/application"
 	"github.com/eclesiaste/event-processor/internal/config"
+	"github.com/eclesiaste/event-processor/internal/infrastructure/migrations"
 	"github.com/eclesiaste/event-processor/internal/infrastructure/postgres"
 	httpserver "github.com/eclesiaste/event-processor/internal/interfaces/http"
 )
@@ -29,6 +30,10 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	if err := migrations.Run(cfg.DatabaseURL); err != nil {
+		log.Fatal(err)
+	}
 
 	eventRepository := postgres.NewEventRepository(db)
 	eventService := application.NewEventService(eventRepository)
