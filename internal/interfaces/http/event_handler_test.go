@@ -289,3 +289,147 @@ func TestEventHandler_GetByID_InternalError(t *testing.T) {
 		)
 	}
 }
+
+func TestEventHandler_Create_EmptyType(t *testing.T) {
+	service := &mockEventService{
+		createFunc: func(
+			ctx context.Context,
+			eventType string,
+			source string,
+			payload []byte,
+		) (*domain.Event, error) {
+			t.Fatal("service should not be called")
+			return nil, nil
+		},
+	}
+
+	handler := NewEventHandler(service)
+
+	body := `{
+		"type": "",
+		"source": "revofin",
+		"payload": {
+			"payment_id": "123"
+		}
+	}`
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/events",
+		strings.NewReader(body),
+	)
+
+	recorder := httptest.NewRecorder()
+
+	handler.Create(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"expected status %d, got %d",
+			http.StatusBadRequest,
+			recorder.Code,
+		)
+	}
+
+	if !strings.Contains(
+		recorder.Body.String(),
+		`"error":"type is required"`,
+	) {
+		t.Fatalf("unexpected response: %s", recorder.Body.String())
+	}
+}
+
+func TestEventHandler_Create_EmptySource(t *testing.T) {
+	service := &mockEventService{
+		createFunc: func(
+			ctx context.Context,
+			eventType string,
+			source string,
+			payload []byte,
+		) (*domain.Event, error) {
+			t.Fatal("service should not be called")
+			return nil, nil
+		},
+	}
+
+	handler := NewEventHandler(service)
+
+	body := `{
+		"type": "payment.created",
+		"source": "",
+		"payload": {
+			"payment_id": "123"
+		}
+	}`
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/events",
+		strings.NewReader(body),
+	)
+
+	recorder := httptest.NewRecorder()
+
+	handler.Create(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"expected status %d, got %d",
+			http.StatusBadRequest,
+			recorder.Code,
+		)
+	}
+
+	if !strings.Contains(
+		recorder.Body.String(),
+		`"error":"source is required"`,
+	) {
+		t.Fatalf("unexpected response: %s", recorder.Body.String())
+	}
+}
+
+func TestEventHandler_Create_EmptyPayload(t *testing.T) {
+	service := &mockEventService{
+		createFunc: func(
+			ctx context.Context,
+			eventType string,
+			source string,
+			payload []byte,
+		) (*domain.Event, error) {
+			t.Fatal("service should not be called")
+			return nil, nil
+		},
+	}
+
+	handler := NewEventHandler(service)
+
+	body := `{
+		"type": "payment.created",
+		"source": "revofin"
+	}`
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/events",
+		strings.NewReader(body),
+	)
+
+	recorder := httptest.NewRecorder()
+
+	handler.Create(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"expected status %d, got %d",
+			http.StatusBadRequest,
+			recorder.Code,
+		)
+	}
+
+	if !strings.Contains(
+		recorder.Body.String(),
+		`"error":"payload is required"`,
+	) {
+		t.Fatalf("unexpected response: %s", recorder.Body.String())
+	}
+}

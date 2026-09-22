@@ -66,6 +66,21 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if request.Type == "" {
+		writeError(w, http.StatusBadRequest, "type is required")
+		return
+	}
+
+	if request.Source == "" {
+		writeError(w, http.StatusBadRequest, "source is required")
+		return
+	}
+
+	if len(request.Payload) == 0 || string(request.Payload) == "null" {
+		writeError(w, http.StatusBadRequest, "payload is required")
+		return
+	}
+
 	event, err := h.service.Create(
 		r.Context(),
 		request.Type,
