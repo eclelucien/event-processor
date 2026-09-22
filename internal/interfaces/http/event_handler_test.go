@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eclesiaste/event-processor/internal/application"
 	"github.com/eclesiaste/event-processor/internal/domain"
 )
 
@@ -229,7 +230,7 @@ func TestEventHandler_GetByID_NotFound(t *testing.T) {
 			ctx context.Context,
 			id string,
 		) (*domain.Event, error) {
-			return nil, errors.New("event not found")
+			return nil, application.ErrEventNotFound
 		},
 	}
 
@@ -251,6 +252,39 @@ func TestEventHandler_GetByID_NotFound(t *testing.T) {
 		t.Fatalf(
 			"expected status %d, got %d",
 			http.StatusNotFound,
+			recorder.Code,
+		)
+	}
+}
+
+func TestEventHandler_GetByID_InternalError(t *testing.T) {
+	service := &mockEventService{
+		getByIDFunc: func(
+			ctx context.Context,
+			id string,
+		) (*domain.Event, error) {
+			return nil, errors.New("database connection failed")
+		},
+	}
+
+	handler := NewEventHandler(service)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/events/event-123",
+		nil,
+	)
+
+	request.SetPathValue("id", "event-123")
+
+	recorder := httptest.NewRecorder()
+
+	handler.GetByID(recorder, request)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf(
+			"expected status %d, got %d",
+			http.StatusInternalServerError,
 			recorder.Code,
 		)
 	}

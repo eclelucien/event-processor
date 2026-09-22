@@ -3,8 +3,10 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 
+	"github.com/eclesiaste/event-processor/internal/application"
 	"github.com/eclesiaste/event-processor/internal/domain"
 )
 
@@ -88,7 +90,12 @@ func (h *EventHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	event, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, "event not found", http.StatusNotFound)
+		if errors.Is(err, application.ErrEventNotFound) {
+			http.Error(w, "event not found", http.StatusNotFound)
+			return
+		}
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

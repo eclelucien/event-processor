@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -14,6 +15,7 @@ var (
 	ErrInvalidEventType   = errors.New("event type is required")
 	ErrInvalidEventSource = errors.New("event source is required")
 	ErrEmptyPayload       = errors.New("event payload is required")
+	ErrEventNotFound      = errors.New("event not found")
 )
 
 type EventRepository interface {
@@ -68,5 +70,14 @@ func (s *EventService) GetByID(
 	ctx context.Context,
 	id string,
 ) (*domain.Event, error) {
-	return s.repository.GetByID(ctx, id)
+	event, err := s.repository.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrEventNotFound
+		}
+
+		return nil, err
+	}
+
+	return event, nil
 }
