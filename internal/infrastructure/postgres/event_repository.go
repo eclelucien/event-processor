@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/eclesiaste/event-processor/internal/domain"
 )
@@ -70,4 +72,71 @@ func (r *EventRepository) GetByID(
 	}
 
 	return event, nil
+}
+
+func (r *EventRepository) List(
+	ctx context.Context,
+	eventType string,
+	source string,
+	limit int,
+	offset int,
+) ([]domain.Event, error) {
+	args := make([]any, 0, 4)
+	conditions := make([]string, 0, 2)
+
+	if eventType != "" {
+		args = append(args, eventType)
+		conditions = append(conditions, fmt.Sprintf("type = $%d", len(args)))
+	}
+
+	if source != "" {
+		args = append(args, source)
+		conditions = append(conditions, fmt.Sprintf("source = $%d", len(args)))
+	}
+
+	query := `
+		SELECT id, type, source, payload, created_at
+		FROM events
+	`
+
+	if len(conditions) > 0 {
+		query += "WHERE " + strings.Join(conditions, " AND ") + "\n"
+	}
+
+	args = append(args, limit, offset)
+	query += fmt.Sprintf(
+		"ORDER BY created_at DESC LIMIT $%d OFFSET $%d",
+		len(args)-1,
+		len(args),
+	)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	events := make([]domain.Event, 0)
+
+	for rows.Next() {
+		var event domain.Event
+
+		if err := rows.Scan(
+			&event.ID,
+			&event.Type,
+			&event.Source,
+			&event.Payload,
+			&event.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		events = append(events, event)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return events, nil
 }

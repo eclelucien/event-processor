@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/eclesiaste/event-processor/internal/application"
 	"github.com/eclesiaste/event-processor/internal/domain"
@@ -22,6 +23,14 @@ type EventService interface {
 		ctx context.Context,
 		id string,
 	) (*domain.Event, error)
+
+	List(
+		ctx context.Context,
+		eventType string,
+		source string,
+		limit int,
+		offset int,
+	) ([]domain.Event, error)
 }
 
 type EventHandler struct {
@@ -121,4 +130,57 @@ func (h *EventHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (h *EventHandler) List(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	limit, err := parseOptionalInt(query.Get("limit"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid limit")
+		return
+	}
+
+	offset, err := parseOptionalInt(query.Get("offset"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid offset")
+		return
+	}
+
+	events, err := h.service.List(
+		r.Context(),
+		query.Get("type"),
+		query.Get("source"),
+		limit,
+		offset,
+	)
+	if err != nil {
+		if errors.Is(err, application.ErrInvalidListLimit) ||
+			errors.Is(err, application.ErrInvalidListOffset) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	response := make([]eventResponse, 0, len(events))
+
+	for i := range events {
+		response = append(response, newEventResponse(&events[i]))
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+func parseOptionalInt(value string) (int, error) {
+	if value == "" {
+		return 0, nil
+	}
+
+	return strconv.Atoi(value)
 }

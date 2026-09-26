@@ -6,19 +6,18 @@ HTTP API that stores and retrieves events in PostgreSQL. Built as a learning pro
 
 - Go 1.25+
 - Docker (for PostgreSQL)
-- `psql` or another PostgreSQL client to apply migrations
 
 ## Project layout
 
 ```
-cmd/api/                          # application entrypoint
+cmd/api/                              # application entrypoint
 internal/
-  application/                    # use cases and validation
-  config/                         # environment loading
-  domain/                         # Event entity
-  infrastructure/postgres/        # database connection and repository
-  interfaces/http/                # HTTP server and handlers
-migrations/                       # SQL schema
+  application/                        # use cases and validation
+  config/                             # environment loading
+  domain/                             # Event entity
+  infrastructure/migrations/          # embedded SQL migrations, applied on startup
+  infrastructure/postgres/            # database connection and repository
+  interfaces/http/                    # HTTP server and handlers
 ```
 
 ## Setup
@@ -27,13 +26,6 @@ Start PostgreSQL:
 
 ```bash
 docker compose up -d
-```
-
-Apply the schema:
-
-```bash
-psql "postgres://event_processor:event_processor@localhost:5432/event_processor?sslmode=disable" \
-  -f migrations/001_create_events.sql
 ```
 
 Export the required environment variables (all three are mandatory):
@@ -50,7 +42,7 @@ Run the API:
 go run ./cmd/api
 ```
 
-The process listens on `HTTP_PORT` and shuts down on `SIGINT` / `SIGTERM`.
+The process applies embedded SQL migrations on startup, listens on `HTTP_PORT`, and shuts down on `SIGINT` / `SIGTERM`.
 
 ## API
 
@@ -106,6 +98,16 @@ GET /api/v1/events/{id}
 ```
 
 `200 OK` returns the same event shape as create. Unknown IDs return `404`; unexpected failures return `500`.
+
+### List events
+
+```http
+GET /api/v1/events?type=payment.created&source=revofin&limit=20&offset=0
+```
+
+`type` and `source` are optional filters. `limit` defaults to `20` and must be between `1` and `100`. `offset` defaults to `0` and must be zero or greater.
+
+`200 OK` returns a JSON array of events, newest first. An empty result is `[]`. Invalid `limit` or `offset` returns `400`; unexpected failures return `500`.
 
 ## Tests
 

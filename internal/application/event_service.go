@@ -11,16 +11,24 @@ import (
 	"github.com/eclesiaste/event-processor/internal/domain"
 )
 
+const (
+	defaultListLimit = 20
+	maxListLimit     = 100
+)
+
 var (
 	ErrInvalidEventType   = errors.New("event type is required")
 	ErrInvalidEventSource = errors.New("event source is required")
 	ErrEmptyPayload       = errors.New("event payload is required")
 	ErrEventNotFound      = errors.New("event not found")
+	ErrInvalidListLimit   = errors.New("limit must be between 1 and 100")
+	ErrInvalidListOffset  = errors.New("offset must be zero or greater")
 )
 
 type EventRepository interface {
 	Create(ctx context.Context, event *domain.Event) error
 	GetByID(ctx context.Context, id string) (*domain.Event, error)
+	List(ctx context.Context, eventType string, source string, limit int, offset int) ([]domain.Event, error)
 }
 
 type EventService struct {
@@ -80,4 +88,26 @@ func (s *EventService) GetByID(
 	}
 
 	return event, nil
+}
+
+func (s *EventService) List(
+	ctx context.Context,
+	eventType string,
+	source string,
+	limit int,
+	offset int,
+) ([]domain.Event, error) {
+	if limit == 0 {
+		limit = defaultListLimit
+	}
+
+	if limit < 1 || limit > maxListLimit {
+		return nil, ErrInvalidListLimit
+	}
+
+	if offset < 0 {
+		return nil, ErrInvalidListOffset
+	}
+
+	return s.repository.List(ctx, eventType, source, limit, offset)
 }

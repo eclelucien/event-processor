@@ -16,6 +16,7 @@ func NewServer(cfg config.Config, eventHandler *EventHandler) *Server {
 
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("POST /api/v1/events", eventHandler.Create)
+	mux.HandleFunc("GET /api/v1/events", eventHandler.List)
 	mux.HandleFunc("GET /api/v1/events/{id}", eventHandler.GetByID)
 
 	return &Server{

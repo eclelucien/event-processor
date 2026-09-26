@@ -11,6 +11,7 @@ import (
 type mockEventRepository struct {
 	createFunc  func(ctx context.Context, event *domain.Event) error
 	getByIDFunc func(ctx context.Context, id string) (*domain.Event, error)
+	listFunc    func(ctx context.Context, eventType string, source string, limit int, offset int) ([]domain.Event, error)
 }
 
 func (m *mockEventRepository) Create(
@@ -25,6 +26,16 @@ func (m *mockEventRepository) GetByID(
 	id string,
 ) (*domain.Event, error) {
 	return m.getByIDFunc(ctx, id)
+}
+
+func (m *mockEventRepository) List(
+	ctx context.Context,
+	eventType string,
+	source string,
+	limit int,
+	offset int,
+) ([]domain.Event, error) {
+	return m.listFunc(ctx, eventType, source, limit, offset)
 }
 
 func TestEventService_Create(t *testing.T) {
@@ -206,6 +217,152 @@ func TestEventService_GetByID_RepositoryError(t *testing.T) {
 	_, err := service.GetByID(
 		context.Background(),
 		"event-123",
+	)
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected repository error, got %v", err)
+	}
+}
+
+func TestEventService_List_DefaultLimit(t *testing.T) {
+	repository := &mockEventRepository{
+		listFunc: func(
+			ctx context.Context,
+			eventType string,
+			source string,
+			limit int,
+			offset int,
+		) ([]domain.Event, error) {
+			if eventType != "payment.created" {
+				t.Fatalf("unexpected type: %s", eventType)
+			}
+
+			if source != "revofin" {
+				t.Fatalf("unexpected source: %s", source)
+			}
+
+			if limit != 20 {
+				t.Fatalf("expected default limit 20, got %d", limit)
+			}
+
+			if offset != 0 {
+				t.Fatalf("expected offset 0, got %d", offset)
+			}
+
+			return []domain.Event{
+				{
+					ID:     "event-123",
+					Type:   eventType,
+					Source: source,
+				},
+			}, nil
+		},
+	}
+
+	service := NewEventService(repository)
+
+	events, err := service.List(
+		context.Background(),
+		"payment.created",
+		"revofin",
+		0,
+		0,
+	)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+
+	if events[0].ID != "event-123" {
+		t.Fatalf("expected ID event-123, got %s", events[0].ID)
+	}
+}
+
+func TestEventService_List_InvalidLimit(t *testing.T) {
+	repository := &mockEventRepository{
+		listFunc: func(
+			ctx context.Context,
+			eventType string,
+			source string,
+			limit int,
+			offset int,
+		) ([]domain.Event, error) {
+			t.Fatal("repository should not be called")
+			return nil, nil
+		},
+	}
+
+	service := NewEventService(repository)
+
+	_, err := service.List(
+		context.Background(),
+		"",
+		"",
+		101,
+		0,
+	)
+
+	if !errors.Is(err, ErrInvalidListLimit) {
+		t.Fatalf("expected ErrInvalidListLimit, got %v", err)
+	}
+}
+
+func TestEventService_List_InvalidOffset(t *testing.T) {
+	repository := &mockEventRepository{
+		listFunc: func(
+			ctx context.Context,
+			eventType string,
+			source string,
+			limit int,
+			offset int,
+		) ([]domain.Event, error) {
+			t.Fatal("repository should not be called")
+			return nil, nil
+		},
+	}
+
+	service := NewEventService(repository)
+
+	_, err := service.List(
+		context.Background(),
+		"",
+		"",
+		10,
+		-1,
+	)
+
+	if !errors.Is(err, ErrInvalidListOffset) {
+		t.Fatalf("expected ErrInvalidListOffset, got %v", err)
+	}
+}
+
+func TestEventService_List_RepositoryError(t *testing.T) {
+	expectedErr := errors.New("database error")
+
+	repository := &mockEventRepository{
+		listFunc: func(
+			ctx context.Context,
+			eventType string,
+			source string,
+			limit int,
+			offset int,
+		) ([]domain.Event, error) {
+			return nil, expectedErr
+		},
+	}
+
+	service := NewEventService(repository)
+
+	_, err := service.List(
+		context.Background(),
+		"",
+		"",
+		10,
+		0,
 	)
 
 	if !errors.Is(err, expectedErr) {
