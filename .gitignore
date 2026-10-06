@@ -4,6 +4,8 @@
 *.dll
 *.so
 *.dylib
+coverage.out
+*.tar.gz
 
 # Test binaries
 *.test

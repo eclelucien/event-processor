@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	"github.com/eclesiaste/event-processor/internal/application"
 	"github.com/eclesiaste/event-processor/internal/config"
 	"github.com/eclesiaste/event-processor/internal/infrastructure/migrations"
@@ -18,6 +20,8 @@ import (
 )
 
 func main() {
+	godotenv.Load()
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal(err)
