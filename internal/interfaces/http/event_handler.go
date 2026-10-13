@@ -13,19 +13,19 @@ import (
 
 type EventService interface {
 	Create(
-		ctx context.Context,
+		requestContext context.Context,
 		eventType string,
 		source string,
 		payload []byte,
 	) (*domain.Event, error)
 
 	GetByID(
-		ctx context.Context,
+		requestContext context.Context,
 		id string,
 	) (*domain.Event, error)
 
 	List(
-		ctx context.Context,
+		requestContext context.Context,
 		eventType string,
 		source string,
 		limit int,
@@ -70,7 +70,7 @@ func newEventResponse(event *domain.Event) eventResponse {
 func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var request createEventRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	if error := json.NewDecoder(r.Body).Decode(&request); error != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -90,14 +90,14 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.service.Create(
+	event, error := h.service.Create(
 		r.Context(),
 		request.Type,
 		request.Source,
 		request.Payload,
 	)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if error != nil {
+		writeError(w, http.StatusBadRequest, error.Error())
 		return
 	}
 
@@ -112,9 +112,9 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *EventHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
-	event, err := h.service.GetByID(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, application.ErrEventNotFound) {
+	event, error := h.service.GetByID(r.Context(), id)
+	if error != nil {
+		if errors.Is(error, application.ErrEventNotFound) {
 			writeError(w, http.StatusNotFound, "event not found")
 			return
 		}
@@ -135,29 +135,29 @@ func (h *EventHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 func (h *EventHandler) List(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
-	limit, err := parseOptionalInt(query.Get("limit"))
-	if err != nil {
+	limit, error := parseOptionalInt(query.Get("limit"))
+	if error != nil {
 		writeError(w, http.StatusBadRequest, "invalid limit")
 		return
 	}
 
-	offset, err := parseOptionalInt(query.Get("offset"))
-	if err != nil {
+	offset, error := parseOptionalInt(query.Get("offset"))
+	if error != nil {
 		writeError(w, http.StatusBadRequest, "invalid offset")
 		return
 	}
 
-	events, err := h.service.List(
+	events, error := h.service.List(
 		r.Context(),
 		query.Get("type"),
 		query.Get("source"),
 		limit,
 		offset,
 	)
-	if err != nil {
-		if errors.Is(err, application.ErrInvalidListLimit) ||
-			errors.Is(err, application.ErrInvalidListOffset) {
-			writeError(w, http.StatusBadRequest, err.Error())
+	if error != nil {
+		if errors.Is(error, application.ErrInvalidListLimit) ||
+			errors.Is(error, application.ErrInvalidListOffset) {
+			writeError(w, http.StatusBadRequest, error.Error())
 			return
 		}
 

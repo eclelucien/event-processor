@@ -22,38 +22,38 @@ import (
 func main() {
 	godotenv.Load()
 
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatal(err)
+	configurations, error := config.Load()
+	if error != nil {
+		log.Fatal(error)
 	}
 
-	ctx := context.Background()
+	appContext := context.Background()
 
-	db, err := postgres.New(ctx, cfg.DatabaseURL)
-	if err != nil {
-		log.Fatal(err)
+	database, error := postgres.New(appContext, configurations.DatabaseURL)
+	if error != nil {
+		log.Fatal(error)
 	}
-	defer db.Close()
+	defer database.Close()
 
-	if err := migrations.Run(cfg.DatabaseURL); err != nil {
-		log.Fatal(err)
+	if error := migrations.Run(configurations.DatabaseURL); error != nil {
+		log.Fatal(error)
 	}
 
-	eventRepository := postgres.NewEventRepository(db)
+	eventRepository := postgres.NewEventRepository(database)
 	eventService := application.NewEventService(eventRepository)
 	eventHandler := httpserver.NewEventHandler(eventService)
 
-	server := httpserver.NewServer(cfg, eventHandler)
+	server := httpserver.NewServer(configurations, eventHandler)
 
 	log.Printf(
 		"Event Processor running on port %s (%s)",
-		cfg.HTTPPort,
-		cfg.AppEnv,
+		configurations.HTTPPort,
+		configurations.AppEnv,
 	)
 
 	go func() {
-		if err := server.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("HTTP server error: %v", err)
+		if error := server.Start(); error != nil && !errors.Is(error, http.ErrServerClosed) {
+			log.Printf("HTTP server error: %v", error)
 		}
 	}()
 
@@ -75,8 +75,8 @@ func main() {
 	)
 	defer cancel()
 
-	if err := server.Shutdown(shutdownContext); err != nil {
-		log.Printf("HTTP server shutdown error: %v", err)
+	if error := server.Shutdown(shutdownContext); error != nil {
+		log.Printf("HTTP server shutdown error: %v", error)
 	}
 
 	log.Println("Event Processor stopped")

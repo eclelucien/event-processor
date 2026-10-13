@@ -10,21 +10,21 @@ import (
 )
 
 type EventRepository struct {
-	db *sql.DB
+	database *sql.DB
 }
 
-func NewEventRepository(db *sql.DB) *EventRepository {
+func NewEventRepository(database *sql.DB) *EventRepository {
 	return &EventRepository{
-		db: db,
+		database: database,
 	}
 }
 
 func (r *EventRepository) Create(
-	ctx context.Context,
+	requestContext context.Context,
 	event *domain.Event,
 ) error {
-	_, err := r.db.ExecContext(
-		ctx,
+	_, error := r.database.ExecContext(
+		requestContext,
 		`
 		INSERT INTO events (
 			id,
@@ -42,17 +42,17 @@ func (r *EventRepository) Create(
 		event.CreatedAt,
 	)
 
-	return err
+	return error
 }
 
 func (r *EventRepository) GetByID(
-	ctx context.Context,
+	requestContext context.Context,
 	id string,
 ) (*domain.Event, error) {
 	event := &domain.Event{}
 
-	err := r.db.QueryRowContext(
-		ctx,
+	error := r.database.QueryRowContext(
+		requestContext,
 		`
 		SELECT id, type, source, payload, created_at
 		FROM events
@@ -67,15 +67,15 @@ func (r *EventRepository) GetByID(
 		&event.CreatedAt,
 	)
 
-	if err != nil {
-		return nil, err
+	if error != nil {
+		return nil, error
 	}
 
 	return event, nil
 }
 
 func (r *EventRepository) List(
-	ctx context.Context,
+	requestContext context.Context,
 	eventType string,
 	source string,
 	limit int,
@@ -110,9 +110,9 @@ func (r *EventRepository) List(
 		len(args),
 	)
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
+	rows, error := r.database.QueryContext(requestContext, query, args...)
+	if error != nil {
+		return nil, error
 	}
 	defer rows.Close()
 
@@ -121,21 +121,21 @@ func (r *EventRepository) List(
 	for rows.Next() {
 		var event domain.Event
 
-		if err := rows.Scan(
+		if error := rows.Scan(
 			&event.ID,
 			&event.Type,
 			&event.Source,
 			&event.Payload,
 			&event.CreatedAt,
-		); err != nil {
-			return nil, err
+		); error != nil {
+			return nil, error
 		}
 
 		events = append(events, event)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
+	if error := rows.Err(); error != nil {
+		return nil, error
 	}
 
 	return events, nil

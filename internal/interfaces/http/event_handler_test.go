@@ -14,41 +14,41 @@ import (
 )
 
 type mockEventService struct {
-	createFunc  func(ctx context.Context, eventType, source string, payload []byte) (*domain.Event, error)
-	getByIDFunc func(ctx context.Context, id string) (*domain.Event, error)
-	listFunc    func(ctx context.Context, eventType string, source string, limit int, offset int) ([]domain.Event, error)
+	createFunc  func(requestContext context.Context, eventType, source string, payload []byte) (*domain.Event, error)
+	getByIDFunc func(requestContext context.Context, id string) (*domain.Event, error)
+	listFunc    func(requestContext context.Context, eventType string, source string, limit int, offset int) ([]domain.Event, error)
 }
 
 func (m *mockEventService) Create(
-	ctx context.Context,
+	requestContext context.Context,
 	eventType string,
 	source string,
 	payload []byte,
 ) (*domain.Event, error) {
-	return m.createFunc(ctx, eventType, source, payload)
+	return m.createFunc(requestContext, eventType, source, payload)
 }
 
 func (m *mockEventService) GetByID(
-	ctx context.Context,
+	requestContext context.Context,
 	id string,
 ) (*domain.Event, error) {
-	return m.getByIDFunc(ctx, id)
+	return m.getByIDFunc(requestContext, id)
 }
 
 func (m *mockEventService) List(
-	ctx context.Context,
+	requestContext context.Context,
 	eventType string,
 	source string,
 	limit int,
 	offset int,
 ) ([]domain.Event, error) {
-	return m.listFunc(ctx, eventType, source, limit, offset)
+	return m.listFunc(requestContext, eventType, source, limit, offset)
 }
 
 func TestEventHandler_Create(t *testing.T) {
 	service := &mockEventService{
 		createFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			payload []byte,
@@ -112,7 +112,7 @@ func TestEventHandler_Create(t *testing.T) {
 func TestEventHandler_Create_InvalidJSON(t *testing.T) {
 	service := &mockEventService{
 		createFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			payload []byte,
@@ -148,7 +148,7 @@ func TestEventHandler_Create_ServiceError(t *testing.T) {
 
 	service := &mockEventService{
 		createFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			payload []byte,
@@ -189,7 +189,7 @@ func TestEventHandler_Create_ServiceError(t *testing.T) {
 func TestEventHandler_GetByID(t *testing.T) {
 	service := &mockEventService{
 		getByIDFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			id string,
 		) (*domain.Event, error) {
 			if id != "event-123" {
@@ -238,7 +238,7 @@ func TestEventHandler_GetByID(t *testing.T) {
 func TestEventHandler_GetByID_NotFound(t *testing.T) {
 	service := &mockEventService{
 		getByIDFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			id string,
 		) (*domain.Event, error) {
 			return nil, application.ErrEventNotFound
@@ -271,7 +271,7 @@ func TestEventHandler_GetByID_NotFound(t *testing.T) {
 func TestEventHandler_GetByID_InternalError(t *testing.T) {
 	service := &mockEventService{
 		getByIDFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			id string,
 		) (*domain.Event, error) {
 			return nil, errors.New("database connection failed")
@@ -304,7 +304,7 @@ func TestEventHandler_GetByID_InternalError(t *testing.T) {
 func TestEventHandler_Create_EmptyType(t *testing.T) {
 	service := &mockEventService{
 		createFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			payload []byte,
@@ -353,7 +353,7 @@ func TestEventHandler_Create_EmptyType(t *testing.T) {
 func TestEventHandler_Create_EmptySource(t *testing.T) {
 	service := &mockEventService{
 		createFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			payload []byte,
@@ -402,7 +402,7 @@ func TestEventHandler_Create_EmptySource(t *testing.T) {
 func TestEventHandler_Create_EmptyPayload(t *testing.T) {
 	service := &mockEventService{
 		createFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			payload []byte,
@@ -448,7 +448,7 @@ func TestEventHandler_Create_EmptyPayload(t *testing.T) {
 func TestEventHandler_List(t *testing.T) {
 	service := &mockEventService{
 		listFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			limit int,
@@ -512,7 +512,7 @@ func TestEventHandler_List(t *testing.T) {
 func TestEventHandler_List_InvalidLimit(t *testing.T) {
 	service := &mockEventService{
 		listFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			limit int,
@@ -551,7 +551,7 @@ func TestEventHandler_List_InvalidLimit(t *testing.T) {
 func TestEventHandler_List_LimitOutOfRange(t *testing.T) {
 	service := &mockEventService{
 		listFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			limit int,
@@ -585,7 +585,7 @@ func TestEventHandler_List_LimitOutOfRange(t *testing.T) {
 func TestEventHandler_List_InternalError(t *testing.T) {
 	service := &mockEventService{
 		listFunc: func(
-			ctx context.Context,
+			requestContext context.Context,
 			eventType string,
 			source string,
 			limit int,

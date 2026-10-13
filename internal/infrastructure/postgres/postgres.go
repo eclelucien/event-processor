@@ -8,20 +8,20 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func New(ctx context.Context, databaseURL string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", databaseURL)
-	if err != nil {
-		return nil, err
+func New(requestContext context.Context, databaseURL string) (*sql.DB, error) {
+	database, error := sql.Open("pgx", databaseURL)
+	if error != nil {
+		return nil, error
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxLifetime(30 * time.Minute)
-	db.SetConnMaxIdleTime(5 * time.Minute)
+	database.SetMaxOpenConns(25)
+	database.SetMaxIdleConns(10)
+	database.SetConnMaxLifetime(30 * time.Minute)
+	database.SetConnMaxIdleTime(5 * time.Minute)
 
-	if err := db.PingContext(ctx); err != nil {
-		return nil, err
+	if error := database.PingContext(requestContext); error != nil {
+		return nil, error
 	}
 
-	return db, nil
+	return database, nil
 }

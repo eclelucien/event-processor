@@ -11,7 +11,7 @@ type Server struct {
 	httpServer *http.Server
 }
 
-func NewServer(cfg config.Config, eventHandler *EventHandler) *Server {
+func NewServer(configurations config.Config, eventHandler *EventHandler) *Server {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
@@ -21,7 +21,7 @@ func NewServer(cfg config.Config, eventHandler *EventHandler) *Server {
 
 	return &Server{
 		httpServer: &http.Server{
-			Addr:    ":" + cfg.HTTPPort,
+			Addr:    ":" + configurations.HTTPPort,
 			Handler: mux,
 		},
 	}
@@ -38,6 +38,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
-func (s *Server) Shutdown(ctx context.Context) error {
-	return s.httpServer.Shutdown(ctx)
+func (s *Server) Shutdown(requestContext context.Context) error {
+	return s.httpServer.Shutdown(requestContext)
 }

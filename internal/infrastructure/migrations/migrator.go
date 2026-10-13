@@ -18,59 +18,59 @@ import (
 var migrationFiles embed.FS
 
 func Run(databaseURL string) error {
-	db, err := sql.Open("pgx", databaseURL)
-	if err != nil {
-		return fmt.Errorf("failed to open database for migrations: %w", err)
+	database, error := sql.Open("pgx", databaseURL)
+	if error != nil {
+		return fmt.Errorf("failed to open database for migrations: %w", error)
 	}
 
-	defer db.Close()
+	defer database.Close()
 
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database for migrations: %w", err)
+	if error := database.Ping(); error != nil {
+		return fmt.Errorf("failed to ping database for migrations: %w", error)
 	}
 
-	migrationFS, err := fs.Sub(migrationFiles, "files")
-	if err != nil {
-		return fmt.Errorf("failed to create migration filesystem: %w", err)
+	migrationFS, error := fs.Sub(migrationFiles, "files")
+	if error != nil {
+		return fmt.Errorf("failed to create migration filesystem: %w", error)
 	}
 
-	driver, err := postgres.WithInstance(
-		db,
+	driver, error := postgres.WithInstance(
+		database,
 		&postgres.Config{},
 	)
-	if err != nil {
-		return fmt.Errorf("failed to create postgres migration driver: %w", err)
+	if error != nil {
+		return fmt.Errorf("failed to create postgres migration driver: %w", error)
 	}
 
-	sourceDriver, err := iofs.New(migrationFS, ".")
-	if err != nil {
-		return fmt.Errorf("failed to create migration source: %w", err)
+	sourceDriver, error := iofs.New(migrationFS, ".")
+	if error != nil {
+		return fmt.Errorf("failed to create migration source: %w", error)
 	}
 
-	m, err := migrate.NewWithInstance(
+	migration, error := migrate.NewWithInstance(
 		"iofs",
 		sourceDriver,
 		"postgres",
 		driver,
 	)
-	if err != nil {
-		return fmt.Errorf("failed to initialize migrations: %w", err)
+	if error != nil {
+		return fmt.Errorf("failed to initialize migrations: %w", error)
 	}
 
 	defer func() {
-		sourceErr, databaseErr := m.Close()
+		sourceError, databaseError := migration.Close()
 
-		if sourceErr != nil {
-			fmt.Printf("migration source close error: %v\n", sourceErr)
+		if sourceError != nil {
+			fmt.Printf("migration source close error: %v\n", sourceError)
 		}
 
-		if databaseErr != nil {
-			fmt.Printf("migration database close error: %v\n", databaseErr)
+		if databaseError != nil {
+			fmt.Printf("migration database close error: %v\n", databaseError)
 		}
 	}()
 
-	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to run migrations: %w", err)
+	if error := migration.Up(); error != nil && !errors.Is(error, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to run migrations: %w", error)
 	}
 
 	return nil

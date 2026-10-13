@@ -13,20 +13,20 @@ import (
 )
 
 func TestEventRepository_CreateAndGetByID(t *testing.T) {
-	ctx := context.Background()
+	requestContext := context.Background()
 
 	databaseURL := os.Getenv("DATABASE_URL")
 
 	if databaseURL == "" {
 		t.Fatal("DATABASE_URL is not set")
 	}
-	db, err := New(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("failed to connect to database: %v", err)
+	database, error := New(requestContext, databaseURL)
+	if error != nil {
+		t.Fatalf("failed to connect to database: %v", error)
 	}
-	defer db.Close()
+	defer database.Close()
 
-	repository := NewEventRepository(db)
+	repository := NewEventRepository(database)
 
 	event := &domain.Event{
 		ID:        uuid.NewString(),
@@ -36,14 +36,14 @@ func TestEventRepository_CreateAndGetByID(t *testing.T) {
 		CreatedAt: time.Now().UTC(),
 	}
 
-	err = repository.Create(ctx, event)
-	if err != nil {
-		t.Fatalf("failed to create event: %v", err)
+	error = repository.Create(requestContext, event)
+	if error != nil {
+		t.Fatalf("failed to create event: %v", error)
 	}
 
-	result, err := repository.GetByID(ctx, event.ID)
-	if err != nil {
-		t.Fatalf("failed to get event: %v", err)
+	result, error := repository.GetByID(requestContext, event.ID)
+	if error != nil {
+		t.Fatalf("failed to get event: %v", error)
 	}
 
 	if result.ID != event.ID {
@@ -61,12 +61,12 @@ func TestEventRepository_CreateAndGetByID(t *testing.T) {
 	var expectedPayload map[string]any
 	var actualPayload map[string]any
 
-	if err := json.Unmarshal(event.Payload, &expectedPayload); err != nil {
-		t.Fatalf("failed to decode expected payload: %v", err)
+	if error := json.Unmarshal(event.Payload, &expectedPayload); error != nil {
+		t.Fatalf("failed to decode expected payload: %v", error)
 	}
 
-	if err := json.Unmarshal(result.Payload, &actualPayload); err != nil {
-		t.Fatalf("failed to decode actual payload: %v", err)
+	if error := json.Unmarshal(result.Payload, &actualPayload); error != nil {
+		t.Fatalf("failed to decode actual payload: %v", error)
 	}
 
 	if !reflect.DeepEqual(expectedPayload, actualPayload) {
@@ -79,20 +79,20 @@ func TestEventRepository_CreateAndGetByID(t *testing.T) {
 }
 
 func TestEventRepository_List(t *testing.T) {
-	ctx := context.Background()
+	requestContext := context.Background()
 
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		t.Fatal("DATABASE_URL is not set")
 	}
 
-	db, err := New(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("failed to connect to database: %v", err)
+	database, error := New(requestContext, databaseURL)
+	if error != nil {
+		t.Fatalf("failed to connect to database: %v", error)
 	}
-	defer db.Close()
+	defer database.Close()
 
-	repository := NewEventRepository(db)
+	repository := NewEventRepository(database)
 
 	source := "list-test-" + uuid.NewString()
 	older := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -121,14 +121,14 @@ func TestEventRepository_List(t *testing.T) {
 	}
 
 	for _, event := range []*domain.Event{first, second, otherType} {
-		if err := repository.Create(ctx, event); err != nil {
-			t.Fatalf("failed to create event: %v", err)
+		if error := repository.Create(requestContext, event); error != nil {
+			t.Fatalf("failed to create event: %v", error)
 		}
 	}
 
-	events, err := repository.List(ctx, "payment.created", source, 10, 0)
-	if err != nil {
-		t.Fatalf("failed to list events: %v", err)
+	events, error := repository.List(requestContext, "payment.created", source, 10, 0)
+	if error != nil {
+		t.Fatalf("failed to list events: %v", error)
 	}
 
 	if len(events) != 2 {
@@ -143,9 +143,9 @@ func TestEventRepository_List(t *testing.T) {
 		t.Fatalf("expected oldest event second, got %s", events[1].ID)
 	}
 
-	page, err := repository.List(ctx, "", source, 1, 1)
-	if err != nil {
-		t.Fatalf("failed to list events page: %v", err)
+	page, error := repository.List(requestContext, "", source, 1, 1)
+	if error != nil {
+		t.Fatalf("failed to list events page: %v", error)
 	}
 
 	if len(page) != 1 {

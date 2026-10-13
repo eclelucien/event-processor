@@ -26,9 +26,9 @@ var (
 )
 
 type EventRepository interface {
-	Create(ctx context.Context, event *domain.Event) error
-	GetByID(ctx context.Context, id string) (*domain.Event, error)
-	List(ctx context.Context, eventType string, source string, limit int, offset int) ([]domain.Event, error)
+	Create(requestContext context.Context, event *domain.Event) error
+	GetByID(requestContext context.Context, id string) (*domain.Event, error)
+	List(requestContext context.Context, eventType string, source string, limit int, offset int) ([]domain.Event, error)
 }
 
 type EventService struct {
@@ -42,7 +42,7 @@ func NewEventService(repository EventRepository) *EventService {
 }
 
 func (s *EventService) Create(
-	ctx context.Context,
+	requestContext context.Context,
 	eventType string,
 	source string,
 	payload []byte,
@@ -67,31 +67,31 @@ func (s *EventService) Create(
 		CreatedAt: time.Now().UTC(),
 	}
 
-	if err := s.repository.Create(ctx, event); err != nil {
-		return nil, err
+	if error := s.repository.Create(requestContext, event); error != nil {
+		return nil, error
 	}
 
 	return event, nil
 }
 
 func (s *EventService) GetByID(
-	ctx context.Context,
+	requestContext context.Context,
 	id string,
 ) (*domain.Event, error) {
-	event, err := s.repository.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	event, error := s.repository.GetByID(requestContext, id)
+	if error != nil {
+		if errors.Is(error, sql.ErrNoRows) {
 			return nil, ErrEventNotFound
 		}
 
-		return nil, err
+		return nil, error
 	}
 
 	return event, nil
 }
 
 func (s *EventService) List(
-	ctx context.Context,
+	requestContext context.Context,
 	eventType string,
 	source string,
 	limit int,
@@ -109,5 +109,5 @@ func (s *EventService) List(
 		return nil, ErrInvalidListOffset
 	}
 
-	return s.repository.List(ctx, eventType, source, limit, offset)
+	return s.repository.List(requestContext, eventType, source, limit, offset)
 }
