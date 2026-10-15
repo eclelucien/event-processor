@@ -1,11 +1,11 @@
 # Event Processor
 
-HTTP API that stores and retrieves events in PostgreSQL. Built as a learning project around clean architecture in Go: domain, application, infrastructure, and HTTP interfaces stay separate.
+HTTP API that stores events in PostgreSQL and publishes them to Kafka. A consumer in the same process reads the `events` topic and logs each event. Built as a learning project around clean architecture in Go: domain, application, infrastructure, and HTTP interfaces stay separate. The application depends on an `EventPublisher` port; the Kafka client stays in infrastructure.
 
 ## Requirements
 
 - Go 1.25+
-- Docker (for PostgreSQL)
+- Docker (for PostgreSQL and Kafka)
 
 ## Project layout
 
@@ -15,6 +15,7 @@ internal/
   application/                        # use cases and validation
   config/                             # environment loading
   domain/                             # Event entity
+  infrastructure/kafka/               # Kafka producer and consumer
   infrastructure/migrations/          # embedded SQL migrations, applied on startup
   infrastructure/postgres/            # database connection and repository
   interfaces/http/                    # HTTP server and handlers
@@ -22,18 +23,21 @@ internal/
 
 ## Setup
 
-Start PostgreSQL:
+Start PostgreSQL and Kafka:
 
 ```bash
 docker compose up -d
 ```
 
-Export the required environment variables (all three are mandatory):
+Export the required environment variables:
 
 ```bash
 export APP_ENV=development
 export HTTP_PORT=8080
 export DATABASE_URL="postgres://event_processor:event_processor@localhost:5432/event_processor?sslmode=disable"
+export KAFKA_BROKERS=localhost:9092
+export KAFKA_TOPIC=events
+export KAFKA_GROUP_ID=event-processor
 ```
 
 Run the API:
@@ -42,7 +46,9 @@ Run the API:
 go run ./cmd/api
 ```
 
-The process applies embedded SQL migrations on startup, listens on `HTTP_PORT`, and shuts down on `SIGINT` / `SIGTERM`.
+The process applies embedded SQL migrations on startup, publishes each created event to `KAFKA_TOPIC`, and consumes that topic in the same process. It listens on `HTTP_PORT` and shuts down on `SIGINT` / `SIGTERM`.
+
+`POST /api/v1/events` persists the event and then publishes it. The message key is the event ID. The value is JSON with the same fields as the API response, and `payload` stays as JSON (it is not base64). The consumer logs `event processed` after it reads the message.
 
 ## API
 
@@ -114,7 +120,7 @@ GET /api/v1/events?type=payment.created&source=revofin&limit=20&offset=0
 Unit tests (no database):
 
 ```bash
-go test ./internal/application ./internal/interfaces/http
+go test ./internal/application ./internal/interfaces/http ./internal/infrastructure/kafka
 ```
 
 Repository integration tests need a running database and `DATABASE_URL`:

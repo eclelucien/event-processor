@@ -31,13 +31,19 @@ type EventRepository interface {
 	List(requestContext context.Context, eventType string, source string, limit int, offset int) ([]domain.Event, error)
 }
 
-type EventService struct {
-	repository EventRepository
+type EventPublisher interface {
+	Publish(requestContext context.Context, event *domain.Event) error
 }
 
-func NewEventService(repository EventRepository) *EventService {
+type EventService struct {
+	repository EventRepository
+	publisher  EventPublisher
+}
+
+func NewEventService(repository EventRepository, publisher EventPublisher) *EventService {
 	return &EventService{
 		repository: repository,
+		publisher:  publisher,
 	}
 }
 
@@ -68,6 +74,10 @@ func (s *EventService) Create(
 	}
 
 	if error := s.repository.Create(requestContext, event); error != nil {
+		return nil, error
+	}
+
+	if error := s.publisher.Publish(requestContext, event); error != nil {
 		return nil, error
 	}
 

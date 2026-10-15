@@ -14,6 +14,7 @@ import (
 
 	"github.com/eclesiaste/event-processor/internal/application"
 	"github.com/eclesiaste/event-processor/internal/config"
+	"github.com/eclesiaste/event-processor/internal/infrastructure/kafka"
 	"github.com/eclesiaste/event-processor/internal/infrastructure/migrations"
 	"github.com/eclesiaste/event-processor/internal/infrastructure/postgres"
 	httpserver "github.com/eclesiaste/event-processor/internal/interfaces/http"
@@ -27,7 +28,8 @@ func main() {
 		log.Fatal(error)
 	}
 
-	appContext := context.Background()
+	appContext, stop := context.WithCancel(context.Background())
+	defer stop()
 
 	database, error := postgres.New(appContext, configurations.DatabaseURL)
 	if error != nil {
@@ -39,8 +41,35 @@ func main() {
 		log.Fatal(error)
 	}
 
+	producer, error := kafka.NewProducer(
+		configurations.KafkaBrokers,
+		configurations.KafkaTopic,
+	)
+	if error != nil {
+		log.Fatal(error)
+	}
+	defer func() {
+		if error := producer.Close(); error != nil {
+			log.Printf("Kafka producer close error: %v", error)
+		}
+	}()
+
+	consumer, error := kafka.NewConsumer(
+		configurations.KafkaBrokers,
+		configurations.KafkaTopic,
+		configurations.KafkaGroupID,
+	)
+	if error != nil {
+		log.Fatal(error)
+	}
+	defer func() {
+		if error := consumer.Close(); error != nil {
+			log.Printf("Kafka consumer close error: %v", error)
+		}
+	}()
+
 	eventRepository := postgres.NewEventRepository(database)
-	eventService := application.NewEventService(eventRepository)
+	eventService := application.NewEventService(eventRepository, producer)
 	eventHandler := httpserver.NewEventHandler(eventService)
 
 	server := httpserver.NewServer(configurations, eventHandler)
@@ -50,6 +79,16 @@ func main() {
 		configurations.HTTPPort,
 		configurations.AppEnv,
 	)
+
+	consumerStopped := make(chan struct{})
+
+	go func() {
+		defer close(consumerStopped)
+
+		if error := consumer.Start(appContext); error != nil {
+			log.Printf("Kafka consumer error: %v", error)
+		}
+	}()
 
 	go func() {
 		if error := server.Start(); error != nil && !errors.Is(error, http.ErrServerClosed) {
@@ -69,11 +108,19 @@ func main() {
 
 	log.Println("Shutdown signal received")
 
+	stop()
+
 	shutdownContext, cancel := context.WithTimeout(
 		context.Background(),
 		10*time.Second,
 	)
 	defer cancel()
+
+	select {
+	case <-consumerStopped:
+	case <-shutdownContext.Done():
+		log.Printf("Kafka consumer shutdown timed out")
+	}
 
 	if error := server.Shutdown(shutdownContext); error != nil {
 		log.Printf("HTTP server shutdown error: %v", error)

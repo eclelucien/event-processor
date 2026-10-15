@@ -38,6 +38,36 @@ func (m *mockEventRepository) List(
 	return m.listFunc(requestContext, eventType, source, limit, offset)
 }
 
+type mockEventPublisher struct {
+	publishFunc func(requestContext context.Context, event *domain.Event) error
+}
+
+func (m *mockEventPublisher) Publish(
+	requestContext context.Context,
+	event *domain.Event,
+) error {
+	return m.publishFunc(requestContext, event)
+}
+
+func newMockPublisher() *mockEventPublisher {
+	return &mockEventPublisher{
+		publishFunc: func(requestContext context.Context, event *domain.Event) error {
+			return nil
+		},
+	}
+}
+
+func rejectPublisher(t *testing.T) *mockEventPublisher {
+	t.Helper()
+
+	return &mockEventPublisher{
+		publishFunc: func(requestContext context.Context, event *domain.Event) error {
+			t.Fatal("publisher should not be called")
+			return nil
+		},
+	}
+}
+
 func TestEventService_Create(t *testing.T) {
 	repository := &mockEventRepository{
 		createFunc: func(requestContext context.Context, event *domain.Event) error {
@@ -45,7 +75,7 @@ func TestEventService_Create(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, newMockPublisher())
 
 	event, error := service.Create(
 		context.Background(),
@@ -86,7 +116,7 @@ func TestEventService_Create_InvalidType(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, rejectPublisher(t))
 
 	_, error := service.Create(
 		context.Background(),
@@ -107,7 +137,7 @@ func TestEventService_Create_InvalidSource(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, rejectPublisher(t))
 
 	_, error := service.Create(
 		context.Background(),
@@ -128,7 +158,7 @@ func TestEventService_Create_EmptyPayload(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, rejectPublisher(t))
 
 	_, error := service.Create(
 		context.Background(),
@@ -151,7 +181,7 @@ func TestEventService_Create_RepositoryError(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, rejectPublisher(t))
 
 	_, error := service.Create(
 		context.Background(),
@@ -162,6 +192,85 @@ func TestEventService_Create_RepositoryError(t *testing.T) {
 
 	if !errors.Is(error, expectedError) {
 		t.Fatalf("expected repository error, got %v", error)
+	}
+}
+
+func TestEventService_Create_PublishesPersistedEvent(t *testing.T) {
+	var published *domain.Event
+
+	repository := &mockEventRepository{
+		createFunc: func(requestContext context.Context, event *domain.Event) error {
+			return nil
+		},
+	}
+
+	publisher := &mockEventPublisher{
+		publishFunc: func(requestContext context.Context, event *domain.Event) error {
+			published = event
+			return nil
+		},
+	}
+
+	service := NewEventService(repository, publisher)
+
+	event, error := service.Create(
+		context.Background(),
+		"payment.created",
+		"revofin",
+		[]byte(`{"payment_id":"123"}`),
+	)
+
+	if error != nil {
+		t.Fatalf("expected no error, got %v", error)
+	}
+
+	if published == nil {
+		t.Fatal("expected event to be published")
+	}
+
+	if published.ID != event.ID {
+		t.Fatalf("expected published ID %s, got %s", event.ID, published.ID)
+	}
+
+	if published.Type != event.Type {
+		t.Fatalf("expected published type %s, got %s", event.Type, published.Type)
+	}
+
+	if published.Source != event.Source {
+		t.Fatalf("expected published source %s, got %s", event.Source, published.Source)
+	}
+
+	if string(published.Payload) != string(event.Payload) {
+		t.Fatalf("expected published payload %s, got %s", event.Payload, published.Payload)
+	}
+}
+
+func TestEventService_Create_PublishError(t *testing.T) {
+	expectedError := errors.New("broker unavailable")
+
+	repository := &mockEventRepository{
+		createFunc: func(requestContext context.Context, event *domain.Event) error {
+			return nil
+		},
+	}
+
+	publisher := &mockEventPublisher{
+		publishFunc: func(requestContext context.Context, event *domain.Event) error {
+			return expectedError
+		},
+	}
+
+	service := NewEventService(repository, publisher)
+
+	_, error := service.Create(
+		context.Background(),
+		"payment.created",
+		"revofin",
+		[]byte(`{"payment_id":"123"}`),
+	)
+
+	if !errors.Is(error, expectedError) {
+		t.Fatalf("expected publish error, got %v", error)
 	}
 }
 
@@ -183,7 +292,7 @@ func TestEventService_GetByID(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, newMockPublisher())
 
 	event, error := service.GetByID(
 		context.Background(),
@@ -212,7 +321,7 @@ func TestEventService_GetByID_RepositoryError(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, newMockPublisher())
 
 	_, error := service.GetByID(
 		context.Background(),
@@ -259,7 +368,7 @@ func TestEventService_List_DefaultLimit(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, newMockPublisher())
 
 	events, error := service.List(
 		context.Background(),
@@ -296,7 +405,7 @@ func TestEventService_List_InvalidLimit(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, newMockPublisher())
 
 	_, error := service.List(
 		context.Background(),
@@ -325,7 +434,7 @@ func TestEventService_List_InvalidOffset(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, newMockPublisher())
 
 	_, error := service.List(
 		context.Background(),
@@ -355,7 +464,7 @@ func TestEventService_List_RepositoryError(t *testing.T) {
 		},
 	}
 
-	service := NewEventService(repository)
+	service := NewEventService(repository, newMockPublisher())
 
 	_, error := service.List(
 		context.Background(),
